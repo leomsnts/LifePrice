@@ -57,6 +57,11 @@ let assistente = null; // guarda o estado quando a pessoa ta respondendo as perg
 let typed = null;
 let jaInteragiu = 0; // conta quantas vezes o chat foi atualizado
 
+// no celular o layout muda (botoes em cima do input, teclado tapando o rodape)
+function ehMobile() {
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
 function nova(tag, classe, texto) {
   const n = document.createElement(tag);
   if (classe) n.className = classe;
@@ -64,11 +69,23 @@ function nova(tag, classe, texto) {
   return n;
 }
 
-// Na 1a interacao deixo a pessoa onde ela esta (lendo a intro la em cima).
-// Da 2a pra frente a tela acompanha o final do chat.
-function desceSePreciso() {
+// No celular nao forco o foco, senao o teclado abre sozinho e atrapalha.
+function focarInput() {
+  if (!ehMobile()) campo.focus({ preventScroll: true });
+}
+
+// A 1a interacao deixa a pessoa onde ela esta (lendo a intro la em cima).
+// Da 2a pra frente:
+//   - desktop: a tela acompanha o rodape do chat
+//   - celular: como o teclado tapa o rodape, trago o inicio do conteudo novo pro topo
+function ajustaScroll(ancora) {
   jaInteragiu++;
-  if (jaInteragiu >= 2) out.scrollTop = out.scrollHeight;
+  if (jaInteragiu < 2) return;
+  if (ehMobile()) {
+    out.scrollTop = ancora;
+  } else {
+    out.scrollTop = out.scrollHeight;
+  }
 }
 
 function eco(texto) {
@@ -130,6 +147,7 @@ function desenhaBotao(b) {
 }
 
 function desenha(blocos) {
+  const ancora = out.scrollHeight;
   (blocos || []).forEach(function (b) {
     if (b.tipo === "texto") linha(b.texto, b.tom);
     else if (b.tipo === "erro") linha(b.texto, "error");
@@ -138,7 +156,7 @@ function desenha(blocos) {
     else if (b.tipo === "botao") desenhaBotao(b);
     else if (b.tipo === "limpar") limpar();
   });
-  desceSePreciso();
+  ajustaScroll(ancora);
 }
 
 async function post(url, corpo) {
@@ -151,10 +169,11 @@ async function post(url, corpo) {
 }
 
 function mostrarHistorico() {
+  const ancora = out.scrollHeight;
   const h = pegarHistorico();
   if (h.length === 0) {
     linha("Nenhuma compra no historico ainda.", "dim");
-    desceSePreciso();
+    ajustaScroll(ancora);
     return;
   }
   const cab = ["Data", "Descricao", "Preco", "Horas", "Dias uteis", "Dias de vida"];
@@ -167,7 +186,7 @@ function mostrarHistorico() {
     Number(c.dias_de_vida).toFixed(1),
   ]);
   desenhaTabela({ titulo: "Historico de Compras Analisadas", cabecalho: cab, linhas: linhas });
-  desceSePreciso();
+  ajustaScroll(ancora);
 }
 
 function limpar() {
@@ -178,18 +197,20 @@ function limpar() {
 
 // ---- assistente de perguntas (perfil e despesa usam o mesmo motor) ----
 function comecaAssistente(tipo, perguntas) {
+  const ancora = out.scrollHeight;
   assistente = { tipo: tipo, perguntas: perguntas, respostas: {}, passo: 0 };
   linha(tipo === "perfil" ? "Criar perfil financeiro" : "Calcular o custo de uma despesa", "dim");
   linha("(digite 'cancelar' para sair)", "dim");
   pergunta();
+  ajustaScroll(ancora);
 }
 
+// so escreve a pergunta atual; a rolagem fica por conta de quem chamou
 function pergunta() {
   const p = assistente.perguntas[assistente.passo];
   linha(p.texto, "dim");
   campo.placeholder = p.texto;
-  campo.focus({ preventScroll: true });
-  desceSePreciso();
+  focarInput();
 }
 
 function fechaAssistente() {
@@ -198,13 +219,14 @@ function fechaAssistente() {
 }
 
 async function respondeAssistente(valor) {
+  const ancora = out.scrollHeight;
   eco(valor);
   const v = valor.trim();
 
   if (v.toLowerCase() === "cancelar") {
     fechaAssistente();
     linha("Operacao cancelada.", "dim");
-    desceSePreciso();
+    ajustaScroll(ancora);
     return;
   }
 
@@ -215,6 +237,7 @@ async function respondeAssistente(valor) {
     if (v === "" || !isFinite(n)) {
       linha("Valor invalido. Informe um numero.", "error");
       pergunta();
+      ajustaScroll(ancora);
       return;
     }
     assistente.respostas[p.chave] = n;
@@ -222,6 +245,7 @@ async function respondeAssistente(valor) {
     if (v === "") {
       linha("Digite uma descricao.", "error");
       pergunta();
+      ajustaScroll(ancora);
       return;
     }
     assistente.respostas[p.chave] = v;
@@ -230,10 +254,11 @@ async function respondeAssistente(valor) {
   assistente.passo++;
   if (assistente.passo < assistente.perguntas.length) {
     pergunta();
+    ajustaScroll(ancora);
     return;
   }
 
-  // respondeu tudo, agora manda pro backend
+  // respondeu tudo, agora manda pro backend (o desenha() ja cuida da rolagem)
   const tipo = assistente.tipo;
   const respostas = assistente.respostas;
   fechaAssistente();
@@ -280,13 +305,15 @@ form.addEventListener("submit", function (e) {
   if (t === "") return;
 
   // fora de um assistente nao tem o que fazer com texto solto, so dou uma dica
+  const ancora = out.scrollHeight;
   eco(t);
   linha("Use os atalhos ao lado para começar.", "dim");
-  desceSePreciso();
+  ajustaScroll(ancora);
 });
 
-// clicar no terminal devolve o foco pro input, mas sem atrapalhar quem ta selecionando texto
+// clicar no terminal devolve o foco pro input no desktop; no celular nao (abriria o teclado)
 out.addEventListener("mousedown", function () {
+  if (ehMobile()) return;
   if (window.getSelection().toString()) return;
   setTimeout(function () {
     campo.focus({ preventScroll: true });
@@ -336,9 +363,11 @@ function lpCriarPerfil() {
 function lpDespesa() {
   if (assistente) fechaAssistente();
   if (!pegarPerfil()) {
-    linha("Você ainda não criou um perfil.", "error");
-    desenha([{ tipo: "botao", texto: "Criar perfil", acao: "perfil" }]);
-    campo.focus({ preventScroll: true });
+    desenha([
+      { tipo: "erro", texto: "Você ainda não criou um perfil." },
+      { tipo: "botao", texto: "Criar perfil", acao: "perfil" },
+    ]);
+    focarInput();
     return;
   }
   comecaAssistente("despesa", perguntasDespesa);
@@ -352,13 +381,13 @@ async function lpDemo() {
   } catch (e) {
     linha("Erro ao contatar o servidor.", "error");
   }
-  campo.focus({ preventScroll: true });
+  focarInput();
 }
 
 function lpHistorico() {
   if (assistente) fechaAssistente();
   mostrarHistorico();
-  campo.focus({ preventScroll: true });
+  focarInput();
 }
 
 async function lpPrivacidade() {
@@ -369,13 +398,13 @@ async function lpPrivacidade() {
   } catch (e) {
     linha("Erro ao contatar o servidor.", "error");
   }
-  campo.focus({ preventScroll: true });
+  focarInput();
 }
 
 function lpLimpar() {
   if (assistente) fechaAssistente();
   limpar();
-  campo.focus({ preventScroll: true });
+  focarInput();
 }
 
 function abrirPrivacidade() {

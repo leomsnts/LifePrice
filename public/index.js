@@ -28,6 +28,25 @@ function updateToggleModeBtn() {
     }
 }
 
+// No celular os atalhos ficam logo acima da caixa de digitar.
+// No desktop eles voltam pra coluna da esquerda, como sempre.
+function ajustarBotoesMobile() {
+    const win = document.querySelector(".lp-window");
+    const aside = document.querySelector(".lp-sidebar");
+    const terminal = document.getElementById("terminal");
+    const form = document.getElementById("cmd-form");
+    if (!win || !aside || !terminal || !form) return;
+
+    if (window.innerWidth < RESPONSIVE_WIDTH) {
+        if (aside.parentElement !== terminal) terminal.insertBefore(aside, form);
+    } else {
+        if (aside.parentElement !== win) win.insertBefore(aside, terminal);
+    }
+}
+
+window.addEventListener("resize", ajustarBotoesMobile);
+ajustarBotoesMobile();
+
 window.addEventListener("load", initAnimations);
 
 function initAnimations() {

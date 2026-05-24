@@ -609,16 +609,18 @@ hr{
         flex-direction: row;
         width: 100%;
         min-width: 0;
+        flex-shrink: 0;
         overflow-x: auto;
         overflow-y: hidden;
         gap: 4px;
         padding: 8px;
         border-right: none;
-        border-bottom: 1px solid #e5e7eb;
+        border-top: 1px solid #e5e7eb;
     }
-    .tw-dark .lp-sidebar { border-bottom-color: #2a2e35; }
+    .tw-dark .lp-sidebar { border-top-color: #2a2e35; }
     .lp-sidebar-title { display: none; }
     .lp-actions { flex-direction: row; }
     .lp-action { white-space: nowrap; padding: 7px 10px; }
     .lp-action-clear { margin-top: 0; }
+    .term-inputbar { flex-shrink: 0; }
 }
