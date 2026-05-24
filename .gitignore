@@ -1,0 +1,13 @@
+# dados locais (perfil e historico), nao versionar
+data/
+
+# cache do python
+__pycache__/
+*.pyc
+
+# ambiente virtual
+.venv/
+venv/
+
+# vercel
+.vercel/
